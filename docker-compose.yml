@@ -1,0 +1,14 @@
+services:
+  web:
+    build: .
+    image: road-bridge-review:latest
+    ports:
+      - "8000:8000"
+    environment:
+      DB_PATH: /data/app.db
+    volumes:
+      - bridge-data:/data
+    restart: unless-stopped
+
+volumes:
+  bridge-data:

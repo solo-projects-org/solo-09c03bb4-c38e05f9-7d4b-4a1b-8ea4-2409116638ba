@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}路段 {{ segment_id }} - 桥接复核{% endblock %}
+{% block content %}
+<h2>路段 {{ segment_id }}</h2>
+
+<h3>疑似桥接上报（{{ bridges | length }} 条）</h3>
+{% if bridges %}
+{% for b in bridges %}
+<div class="bridge">
+  <strong>⭐ 上报号 {{ b.report_id }}</strong>
+  （修订 {{ by_id[b.report_id].revision }}，
+  坐标 ({{ "%.2f" | format(by_id[b.report_id].x) }}, {{ "%.2f" | format(by_id[b.report_id].y) }}) 米，
+  {{ by_id[b.report_id].ts_utc }}）<br>
+  移除该上报后，原连通组分裂为 {{ b.groups | length }} 个非空组：
+  <ol>
+    {% for g in b.groups %}
+    <li>{{ g | join("、") }}</li>
+    {% endfor %}
+  </ol>
+</div>
+{% endfor %}
+{% else %}
+<p>无疑似桥接上报。</p>
+{% endif %}
+
+<h3>当前有效上报（每号取最高修订，共 {{ reports | length }} 条）</h3>
+{% if reports %}
+<table>
+  <tr><th>上报号</th><th>修订号</th><th>X (米)</th><th>Y (米)</th><th>UTC 时刻</th><th>状态</th><th>桥接</th></tr>
+  {% for r in reports %}
+  <tr class="{{ 'withdrawn' if r.withdrawn else '' }}">
+    <td>{{ r.report_id }}</td>
+    <td>{{ r.revision }}</td>
+    <td>{{ "%.3f" | format(r.x) }}</td>
+    <td>{{ "%.3f" | format(r.y) }}</td>
+    <td>{{ r.ts_utc }}</td>
+    <td>{{ "已撤回（不参与连通）" if r.withdrawn else "有效" }}</td>
+    <td>{{ "⭐" if r.report_id in bridge_ids else "" }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>该路段暂无上报。</p>
+{% endif %}
+<p><a href="/">← 返回首页</a></p>
+{% endblock %}

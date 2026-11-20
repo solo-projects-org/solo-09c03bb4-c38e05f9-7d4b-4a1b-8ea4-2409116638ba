@@ -1,0 +1,7 @@
+fastapi==0.165.0
+uvicorn[standard]==0.54.0
+Jinja2==3.1.6
+python-multipart==0.0.34
+# 自测依赖（镜像构建不需要）
+pytest==9.2.0
+httpx==0.28.1

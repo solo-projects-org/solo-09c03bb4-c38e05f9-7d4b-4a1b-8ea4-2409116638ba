@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+{% if msg %}<p class="ok">{{ msg }}</p>{% endif %}
+{% if error %}<p class="err">{{ error }}</p>{% endif %}
+
+<h2>上传 CSV</h2>
+<form action="/upload" method="post" enctype="multipart/form-data">
+  <input type="file" name="file" accept=".csv,text/csv" required>
+  <button type="submit">上传</button>
+</form>
+<details>
+  <summary>CSV 格式说明</summary>
+  <p>必需列（中英文表头均可）：<code>report_id/上报号, revision/修订号,
+  segment_id/路段号, x, y, ts_utc/UTC时刻, withdrawn/撤回标记</code>。</p>
+  <ul>
+    <li>坐标为平面米坐标；时刻为 ISO 8601（如 <code>2026-11-19T08:30:00Z</code>，无时区按 UTC 计）。</li>
+    <li>撤回标记可用 0/1、true/false、yes/no，留空视为未撤回。</li>
+    <li>同一上报号以最高修订号为准；高修订可更正或撤回，迟到的旧修订不会重新生效。</li>
+    <li>整份文件校验通过才提交：任何一行有错，整批拒绝，不会部分入库。</li>
+  </ul>
+</details>
+
+<h2>路段</h2>
+{% if segments %}
+<table>
+  <tr><th>路段号</th><th>有效上报数</th><th>其中未撤回</th><th></th></tr>
+  {% for s in segments %}
+  <tr>
+    <td>{{ s.segment_id }}</td>
+    <td>{{ s.n_effective }}</td>
+    <td>{{ s.n_active }}</td>
+    <td><a href="/segments/{{ s.segment_id | urlencode }}">查看疑似桥接</a></td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>暂无数据，请先上传 CSV。</p>
+{% endif %}
+
+<h2>上传历史</h2>
+{% if uploads %}
+<table>
+  <tr><th>时间 (UTC)</th><th>文件名</th><th>行数</th><th>批次号</th></tr>
+  {% for u in uploads %}
+  <tr>
+    <td>{{ u.uploaded_at }}</td>
+    <td>{{ u.filename }}</td>
+    <td>{{ u.row_count }}</td>
+    <td><code>{{ u.upload_id[:8] }}</code></td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>暂无上传记录。</p>
+{% endif %}
+{% endblock %}
