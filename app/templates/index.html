@@ -40,12 +40,13 @@
 <h2>上传历史</h2>
 {% if uploads %}
 <table>
-  <tr><th>时间 (UTC)</th><th>文件名</th><th>行数</th><th>批次号</th></tr>
+  <tr><th>时间 (UTC)</th><th>文件名</th><th>行数</th><th>入库方式</th><th>批次号</th></tr>
   {% for u in uploads %}
   <tr>
     <td>{{ u.uploaded_at }}</td>
     <td>{{ u.filename }}</td>
     <td>{{ u.row_count }}</td>
+    <td>{% if u.is_fast %}<span class="fast">快速重传</span>{% else %}正常入库{% endif %}</td>
     <td><code>{{ u.upload_id[:8] }}</code></td>
   </tr>
   {% endfor %}

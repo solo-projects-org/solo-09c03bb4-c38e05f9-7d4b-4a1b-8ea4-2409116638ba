@@ -1,6 +1,7 @@
 """FastAPI 入口：上传 CSV、按路段查看疑似桥接上报及其关联来源。"""
 from __future__ import annotations
 
+import hashlib
 import os
 from pathlib import Path
 from urllib.parse import urlencode
@@ -37,6 +38,7 @@ def create_app(db_path: str) -> FastAPI:
 
     @app.post("/upload", response_class=HTMLResponse)
     async def upload(request: Request, file: UploadFile = File(...)):
+        filename = file.filename or "upload.csv"
         data = await file.read()
         if len(data) > MAX_UPLOAD_BYTES:
             return templates.TemplateResponse(
@@ -45,6 +47,17 @@ def create_app(db_path: str) -> FastAPI:
                 index_context(error="文件超过 20MB 上限"),
                 status_code=413,
             )
+
+        # 快传只依赖原始字节的 SHA-256，不需要解码与逐行解析。判断与登记在
+        # 同一事务内完成；若提交时发现来源已被并发覆盖，返回 None 且不写任何数据，
+        # 再走原规则校验并整批入库。
+        content_sha256 = hashlib.sha256(data).hexdigest()
+        result = db.ingest_upload(
+            db_path, filename, rows=None, content_sha256=content_sha256
+        )
+        if result is not None:
+            return _redirect_success(result)
+
         try:
             text = data.decode("utf-8-sig")
         except UnicodeDecodeError:
@@ -64,8 +77,24 @@ def create_app(db_path: str) -> FastAPI:
                 index_context(error=str(e)),
                 status_code=400,
             )
-        upload_id = db.save_upload(db_path, file.filename or "upload.csv", rows)
-        msg = f"上传成功：{len(rows)} 行已提交（批次 {upload_id[:8]}）"
+        result = db.ingest_upload(
+            db_path,
+            filename,
+            rows=rows,
+            content_sha256=content_sha256,
+        )
+        assert result is not None
+        return _redirect_success(result)
+
+    def _redirect_success(result: dict) -> RedirectResponse:
+        if result["mode"] == "fast":
+            msg = (
+                f"快速重传：{result['row_count']} 行与批次 "
+                f"{result['source_upload_id'][:8]} 逐字节相同且未被覆盖，"
+                f"已跳过解析与写库（批次 {result['upload_id'][:8]}）"
+            )
+        else:
+            msg = f"上传成功：{result['row_count']} 行已提交（批次 {result['upload_id'][:8]}）"
         return RedirectResponse(f"/?{urlencode({'msg': msg})}", status_code=303)
 
     @app.get("/segments/{segment_id}", response_class=HTMLResponse)
